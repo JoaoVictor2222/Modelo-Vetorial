@@ -16,7 +16,7 @@ class Vectorizer:
         df = self.index.get_document_frequency(term)
         if df == 0:
             return 0
-        return math.log10(self.num_docs / df)
+        return 1 + math.log10(self.num_docs / df)
 
     def tfidf(self, term, freq):
         return self.tf(freq) * self.idf(term)
