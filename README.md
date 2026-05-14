@@ -11,6 +11,7 @@ Implementação de um sistema de recuperação de informações baseado no **mod
 - Pré-processamento com remoção de stopwords e stemming (RSLP para português)
 - Interface gráfica com PySide6
 - Visualização de documentos selecionados
+- Busca interna no documento selecionado usando a consulta atual, com destaque e navegação entre ocorrências
 - Estatísticas de coleção: documentos carregados, termos indexados e tokens processados
 - Sugestão ortográfica simples para consultas
 

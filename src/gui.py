@@ -2,6 +2,7 @@ import glob
 import os
 
 from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -42,6 +43,8 @@ class MainWindow(QMainWindow):
         self.preprocessor = Preprocessor(language="portuguese")
         self.ranker = Ranking()
         self.current_results = []
+        self.preview_search_matches = []
+        self.preview_search_current = -1
 
         self.setWindowTitle("Modelo Vetorial - Interface PySide6")
         self.resize(1000, 1000)
@@ -151,6 +154,44 @@ class MainWindow(QMainWindow):
         self.results_table.itemSelectionChanged.connect(self.on_result_selected)
         main_layout.addWidget(self.results_table)
 
+        preview_search_frame = QFrame()
+        preview_search_frame.setFrameShape(QFrame.StyledPanel)
+        preview_search_frame.setStyleSheet(
+            "background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px;"
+        )
+        preview_search_layout = QHBoxLayout(preview_search_frame)
+        self.preview_search_label = QLabel("Busca atual: -")
+        self.preview_search_label.setStyleSheet(
+            "color: #0f172a; font-weight: 600; font-size: 14px;"
+        )
+
+        self.preview_search_prev_button = QPushButton("Anterior")
+        self.preview_search_prev_button.setEnabled(False)
+        self.preview_search_prev_button.setFixedHeight(38)
+        self.preview_search_prev_button.setStyleSheet(
+            "background: #2563eb; color: white; border-radius: 10px; padding: 0 12px;"
+        )
+        self.preview_search_prev_button.clicked.connect(self.find_previous_preview_match)
+
+        self.preview_search_next_button = QPushButton("Próxima")
+        self.preview_search_next_button.setEnabled(False)
+        self.preview_search_next_button.setFixedHeight(38)
+        self.preview_search_next_button.setStyleSheet(
+            "background: #2563eb; color: white; border-radius: 10px; padding: 0 12px;"
+        )
+        self.preview_search_next_button.clicked.connect(self.find_next_preview_match)
+
+        self.preview_search_status_label = QLabel("")
+        self.preview_search_status_label.setStyleSheet(
+            "color: #475569; font-size: 13px; margin-left: 8px;"
+        )
+
+        preview_search_layout.addWidget(self.preview_search_label)
+        preview_search_layout.addWidget(self.preview_search_prev_button)
+        preview_search_layout.addWidget(self.preview_search_next_button)
+        preview_search_layout.addWidget(self.preview_search_status_label)
+        main_layout.addWidget(preview_search_frame)
+
         self.preview_text = QTextEdit()
         self.preview_text.setReadOnly(True)
         self.preview_text.setPlaceholderText("Selecione um documento nos resultados para visualizar seu conteúdo.")
@@ -173,6 +214,11 @@ class MainWindow(QMainWindow):
             self.search_button.setEnabled(False)
             self.results_table.setRowCount(0)
             self.preview_text.clear()
+            self.preview_search_label.setText("Busca atual: -")
+            self.preview_search_prev_button.setEnabled(False)
+            self.preview_search_next_button.setEnabled(False)
+            self.preview_search_status_label.setText("")
+            self.preview_text.setExtraSelections([])
 
     @Slot()
     def load_collection(self):
@@ -218,6 +264,11 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"Status: {len(self.documents)} documento(s) carregado(s). Pronto para buscas.")
         self.results_table.setRowCount(0)
         self.preview_text.clear()
+        self.preview_search_label.setText("Busca atual: -")
+        self.preview_search_prev_button.setEnabled(False)
+        self.preview_search_next_button.setEnabled(False)
+        self.preview_search_status_label.setText("")
+        self.preview_text.setExtraSelections([])
 
     @Slot()
     def perform_search(self):
@@ -283,6 +334,94 @@ class MainWindow(QMainWindow):
 
         self.results_table.resizeRowsToContents()
 
+    def highlight_preview_matches(self):
+        search_term = self.query_input.text().strip()
+        document_text = self.preview_text.toPlainText()
+
+        if not search_term or not document_text:
+            self.preview_search_matches = []
+            self.preview_search_current = -1
+            self.preview_search_prev_button.setEnabled(False)
+            self.preview_search_next_button.setEnabled(False)
+            self.preview_search_status_label.setText("")
+            self.preview_search_label.setText("Busca atual: -")
+            self.preview_text.setExtraSelections([])
+            return
+
+        lower_text = document_text.lower()
+        lower_term = search_term.lower()
+        matches = []
+        start = 0
+
+        while True:
+            index = lower_text.find(lower_term, start)
+            if index == -1:
+                break
+            matches.append((index, len(search_term)))
+            start = index + len(search_term)
+
+        self.preview_search_matches = matches
+        self.preview_search_current = 0 if matches else -1
+        self.preview_search_prev_button.setEnabled(len(matches) > 1)
+        self.preview_search_next_button.setEnabled(len(matches) > 1)
+
+        if matches:
+            self.preview_search_status_label.setText(f"{self.preview_search_current + 1} de {len(matches)}")
+            self.preview_search_label.setText(f"Busca atual: {search_term}")
+            self.preview_search_prev_button.setEnabled(len(matches) > 1)
+            self.preview_search_next_button.setEnabled(len(matches) > 1)
+            self.apply_preview_highlight()
+        else:
+            self.preview_search_status_label.setText("Nenhuma ocorrência encontrada")
+            self.preview_search_label.setText(f"Busca atual: {search_term}")
+            self.preview_search_prev_button.setEnabled(False)
+            self.preview_search_next_button.setEnabled(False)
+            self.preview_text.setExtraSelections([])
+
+    def apply_preview_highlight(self):
+        selections = []
+        current_index = self.preview_search_current
+
+        for idx, (pos, length) in enumerate(self.preview_search_matches):
+            cursor = self.preview_text.textCursor()
+            cursor.setPosition(pos)
+            cursor.setPosition(pos + length, QTextCursor.KeepAnchor)
+
+            selection = QTextEdit.ExtraSelection()
+            selection.cursor = cursor
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor("#fde68a"))
+            fmt.setForeground(QColor("#000000"))
+            if idx == current_index:
+                fmt.setBackground(QColor("#facc15"))
+            selection.format = fmt
+            selections.append(selection)
+
+        self.preview_text.setExtraSelections(selections)
+
+        if current_index >= 0 and current_index < len(self.preview_search_matches):
+            pos, length = self.preview_search_matches[current_index]
+            cursor = self.preview_text.textCursor()
+            cursor.setPosition(pos)
+            cursor.setPosition(pos + length, QTextCursor.KeepAnchor)
+            self.preview_text.setTextCursor(cursor)
+
+    def find_next_preview_match(self):
+        if not self.preview_search_matches:
+            return
+
+        self.preview_search_current = (self.preview_search_current + 1) % len(self.preview_search_matches)
+        self.preview_search_status_label.setText(f"{self.preview_search_current + 1} de {len(self.preview_search_matches)}")
+        self.apply_preview_highlight()
+
+    def find_previous_preview_match(self):
+        if not self.preview_search_matches:
+            return
+
+        self.preview_search_current = (self.preview_search_current - 1) % len(self.preview_search_matches)
+        self.preview_search_status_label.setText(f"{self.preview_search_current + 1} de {len(self.preview_search_matches)}")
+        self.apply_preview_highlight()
+
     def on_result_selected(self):
         selected_items = self.results_table.selectedItems()
         if not selected_items:
@@ -293,6 +432,7 @@ class MainWindow(QMainWindow):
         document = self.documents_by_id.get(doc_id)
         if document:
             self.preview_text.setPlainText(document.text)
+            self.highlight_preview_matches()
 
     def show_error(self, message):
         QMessageBox.warning(self, "Atenção", message)
