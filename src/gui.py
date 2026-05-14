@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QHeaderView,
+    QSplitter,
 )
 
 import difflib
@@ -64,8 +65,8 @@ class MainWindow(QMainWindow):
             "QPushButton:disabled { background: #94a3b8; color: #f1f5f9; }"
         )
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(8)
 
         button_layout = QHBoxLayout()
         self.select_button = QPushButton("Selecionar coleção")
@@ -82,20 +83,20 @@ class MainWindow(QMainWindow):
         self.collection_label = QLabel("Coleção: nenhuma selecionada")
         self.collection_label.setWordWrap(True)
         self.collection_label.setStyleSheet(
-            "font-size: 14px; color: #0f172a; font-weight: 700;"
+            "font-size: 11px; color: #0f172a; font-weight: 700;"
         )
         main_layout.addWidget(self.collection_label)
 
         self.status_label = QLabel("Status: aguardando seleção")
         self.status_label.setStyleSheet(
-            "color: #475569; margin-bottom: 12px; font-size: 13px;"
+            "color: #475569; margin-bottom: 4px; font-size: 11px;"
         )
         main_layout.addWidget(self.status_label)
 
         stats_frame = QFrame()
         stats_frame.setFrameShape(QFrame.StyledPanel)
         stats_frame.setStyleSheet(
-            "background: #fafafa; border: 1px solid #d0d7de; border-radius: 10px; padding: 10px;"
+            "background: #fafafa; border: 1px solid #d0d7de; border-radius: 10px; padding: 6px;"
         )
         stats_layout = QHBoxLayout(stats_frame)
         self.num_docs_label = QLabel("Documentos carregados: 0")
@@ -103,7 +104,7 @@ class MainWindow(QMainWindow):
         self.total_tokens_label = QLabel("Tokens processados: 0")
         for label in (self.num_docs_label, self.num_terms_label, self.total_tokens_label):
             label.setStyleSheet(
-                "color: #1f2937; font-weight: 700; font-size: 13px; padding: 4px 8px;"
+                "color: #1f2937; font-weight: 700; font-size: 11px; padding: 4px 6px;"
             )
             stats_layout.addWidget(label)
         stats_layout.addStretch(1)
@@ -112,17 +113,17 @@ class MainWindow(QMainWindow):
         search_frame = QFrame()
         search_frame.setFrameShape(QFrame.StyledPanel)
         search_frame.setStyleSheet(
-            "background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px;"
+            "background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px;"
         )
         search_area_layout = QHBoxLayout(search_frame)
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("Digite a consulta e clique em Buscar...")
         self.query_input.returnPressed.connect(self.perform_search)
-        self.query_input.setFixedHeight(44)
+        self.query_input.setFixedHeight(38)
         self.search_button = QPushButton("Buscar")
         self.search_button.setEnabled(False)
-        self.search_button.setFixedHeight(44)
-        self.search_button.setMinimumWidth(120)
+        self.search_button.setFixedHeight(38)
+        self.search_button.setMinimumWidth(100)
         self.search_button.setStyleSheet(
             "background: #2563eb; color: white; border-radius: 12px; font-weight: 700;"
         )
@@ -134,7 +135,7 @@ class MainWindow(QMainWindow):
         # SPELL CHECK AREA START
         self.suggestion_label = QLabel("")  # spelling suggestion output label
         self.suggestion_label.setStyleSheet(
-            "color: #2563eb; font-size: 13px; margin-top: 8px; font-weight: 600;"
+            "color: #2563eb; font-size: 12px; margin-top: 4px; font-weight: 600;"
         )
         main_layout.addWidget(self.suggestion_label)
         # SPELL CHECK AREA END
@@ -152,53 +153,66 @@ class MainWindow(QMainWindow):
             "QTableWidget::item:selected { background: #dbeafe; color: #111827; }"
         )
         self.results_table.itemSelectionChanged.connect(self.on_result_selected)
-        main_layout.addWidget(self.results_table)
 
         preview_search_frame = QFrame()
         preview_search_frame.setFrameShape(QFrame.StyledPanel)
         preview_search_frame.setStyleSheet(
-            "background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px;"
+            "background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 8px;"
         )
         preview_search_layout = QHBoxLayout(preview_search_frame)
         self.preview_search_label = QLabel("Busca atual: -")
         self.preview_search_label.setStyleSheet(
-            "color: #0f172a; font-weight: 600; font-size: 14px;"
+            "color: #0f172a; font-weight: 600; font-size: 12px;"
         )
 
         self.preview_search_prev_button = QPushButton("Anterior")
         self.preview_search_prev_button.setEnabled(False)
-        self.preview_search_prev_button.setFixedHeight(38)
+        self.preview_search_prev_button.setFixedHeight(32)
         self.preview_search_prev_button.setStyleSheet(
-            "background: #2563eb; color: white; border-radius: 10px; padding: 0 12px;"
+            "background: #2563eb; color: white; border-radius: 10px; padding: 0 10px; font-size: 11px;"
         )
         self.preview_search_prev_button.clicked.connect(self.find_previous_preview_match)
 
         self.preview_search_next_button = QPushButton("Próxima")
         self.preview_search_next_button.setEnabled(False)
-        self.preview_search_next_button.setFixedHeight(38)
+        self.preview_search_next_button.setFixedHeight(32)
         self.preview_search_next_button.setStyleSheet(
-            "background: #2563eb; color: white; border-radius: 10px; padding: 0 12px;"
+            "background: #2563eb; color: white; border-radius: 10px; padding: 0 10px; font-size: 11px;"
         )
         self.preview_search_next_button.clicked.connect(self.find_next_preview_match)
 
         self.preview_search_status_label = QLabel("")
         self.preview_search_status_label.setStyleSheet(
-            "color: #475569; font-size: 13px; margin-left: 8px;"
+            "color: #475569; font-size: 11px; margin-left: 6px;"
         )
 
         preview_search_layout.addWidget(self.preview_search_label)
         preview_search_layout.addWidget(self.preview_search_prev_button)
         preview_search_layout.addWidget(self.preview_search_next_button)
         preview_search_layout.addWidget(self.preview_search_status_label)
-        main_layout.addWidget(preview_search_frame)
 
         self.preview_text = QTextEdit()
         self.preview_text.setReadOnly(True)
         self.preview_text.setPlaceholderText("Selecione um documento nos resultados para visualizar seu conteúdo.")
         self.preview_text.setStyleSheet(
-            "QTextEdit { background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; }"
+            "QTextEdit { background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; font-size: 12px; }"
         )
-        main_layout.addWidget(self.preview_text, stretch=1)
+
+        splitter = QSplitter(Qt.Vertical)
+        splitter.addWidget(self.results_table)
+        
+        preview_container = QWidget()
+        preview_layout = QVBoxLayout(preview_container)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.setSpacing(8)
+        preview_layout.addWidget(preview_search_frame)
+        preview_layout.addWidget(self.preview_text)
+        splitter.addWidget(preview_container)
+        
+        splitter.setStretchFactor(0, 4)
+        splitter.setStretchFactor(1, 3)
+
+        main_layout.addWidget(splitter)
 
         container.setLayout(main_layout)
         self.setCentralWidget(container)
@@ -331,8 +345,6 @@ class MainWindow(QMainWindow):
             self.results_table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
             self.results_table.setItem(row, 1, QTableWidgetItem(filename))
             self.results_table.setItem(row, 2, QTableWidgetItem(f"{score:.6f}"))
-
-        self.results_table.resizeRowsToContents()
 
     def highlight_preview_matches(self):
         search_term = self.query_input.text().strip()
