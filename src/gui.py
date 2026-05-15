@@ -6,6 +6,7 @@ from PySide6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
+    QComboBox,
     QVBoxLayout,
     QWidget,
     QHeaderView,
@@ -71,13 +73,22 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
         self.select_button = QPushButton("Selecionar coleção")
         self.select_button.clicked.connect(self.select_collection)
+
         self.load_button = QPushButton("Carregar coleção")
         self.load_button.setEnabled(False)
         self.load_button.clicked.connect(self.load_collection)
+
+        self.show_vectors_button = QPushButton("Ver vetores")
+        self.show_vectors_button.setEnabled(False)
+        self.show_vectors_button.clicked.connect(self.show_document_vectors)
+
         self.select_button.setFixedHeight(40)
         self.load_button.setFixedHeight(40)
+        self.show_vectors_button.setFixedHeight(40)
+
         button_layout.addWidget(self.select_button)
         button_layout.addWidget(self.load_button)
+        button_layout.addWidget(self.show_vectors_button)
         main_layout.addLayout(button_layout)
 
         self.collection_label = QLabel("Coleção: nenhuma selecionada")
@@ -271,6 +282,7 @@ class MainWindow(QMainWindow):
         self.documents_by_id = {doc.doc_id: doc for doc in self.documents}
         self.index = index
         self.search_button.setEnabled(True)
+        self.show_vectors_button.setEnabled(True)
         total_tokens = sum(len(doc.tokens) for doc in self.documents)
         self.num_docs_label.setText(f"Documentos carregados: {len(self.documents)}")
         self.num_terms_label.setText(f"Termos indexados: {len(index.get_terms())}")
@@ -304,7 +316,7 @@ class MainWindow(QMainWindow):
         query_obj = Query(query_text, query_vector)
         self.current_results = self.ranker.rank(query_obj.vector, self.documents)
         self.display_results()
-        self.update_spelling_suggestion(query_text, query_tokens)  # SPELL CHECK: comment this line to disable
+        #self.update_spelling_suggestion(query_text, query_tokens)  # SPELL CHECK: comment this line to disable
 
     def update_spelling_suggestion(self, query_text, query_tokens):
         if not self.index or not self.original_terms:
@@ -446,12 +458,78 @@ class MainWindow(QMainWindow):
             self.preview_text.setPlainText(document.text)
             self.highlight_preview_matches()
 
+    @Slot()
+    def show_document_vectors(self):
+        if not self.documents:
+            self.show_error("Nenhum documento carregado para exibir os vetores.")
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Vetores dos Documentos")
+        dialog.resize(700, 520)
+        dialog.setStyleSheet("QDialog { background: #f8fafc; color: #111827; }")
+
+        selection_label = QLabel("Selecione o documento:")
+        selection_label.setStyleSheet("font-weight: 700; margin-bottom: 6px;")
+
+        combo = QComboBox(dialog)
+        for document in self.documents:
+            combo.addItem(document.filename, document.doc_id)
+
+        text_edit = QTextEdit(dialog)
+        text_edit.setReadOnly(True)
+        text_edit.setStyleSheet(
+            "QTextEdit { background: white; color: #111827; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; }"
+        )
+
+        def update_vector(index=0):
+            if index < 0 or index >= combo.count():
+                text_edit.clear()
+                return
+
+            doc_id = combo.itemData(index)
+            document = self.documents_by_id.get(doc_id)
+            if not document:
+                text_edit.clear()
+                return
+
+            lines = [f"Documento {document.doc_id}: {document.filename}"]
+            if document.vector:
+                for term, weight in sorted(document.vector.items()):
+                    lines.append(f"  {term}: {weight:.6f}")
+            else:
+                lines.append("  (vetor vazio)")
+
+            text_edit.setPlainText("\n".join(lines))
+
+        combo.currentIndexChanged.connect(update_vector)
+        update_vector(0)
+
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(selection_label)
+        layout.addWidget(combo)
+        layout.addWidget(text_edit)
+        dialog.setLayout(layout)
+        dialog.exec()
+
     def show_error(self, message):
         QMessageBox.warning(self, "Atenção", message)
 
 
 def run():
     app = QApplication([])
+    app.setStyleSheet(
+        "QWidget { background-color: #f8fafc; color: #111827; font-family: 'Segoe UI', Arial, sans-serif; }"
+        "QLabel { color: #111827; }"
+        "QLineEdit, QTextEdit, QTableWidget { background: white; border: 1px solid #cbd5e1; border-radius: 12px; }"
+        "QTableWidget { gridline-color: #e2e8f0; }"
+        "QHeaderView::section { background: #e2e8f0; padding: 10px; border: none; font-weight: 700; color: #111827; }"
+        "QPushButton { background: #3b82f6; color: white; border: none; border-radius: 12px; padding: 10px 16px; font-weight: 700; }"
+        "QPushButton:hover { background: #2563eb; }"
+        "QPushButton:disabled { background: #94a3b8; color: #f1f5f9; }"
+        "QDialog { background: #f8fafc; color: #111827; }"
+        "QTextEdit { color: #111827; }"
+    )
     window = MainWindow()
     window.show()
     app.exec()
